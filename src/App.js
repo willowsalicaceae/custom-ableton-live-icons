@@ -9,49 +9,41 @@ import CssBaseline from '@mui/joy/CssBaseline';
 import CustomColorPicker from './CustomColorPicker';
 import { toPng } from 'html-to-image';
 
-const downloadIcon = () => {
-  const svgElement = document.getElementById('output');
-  toPng(svgElement)
-    .then((dataUrl) => {
-      const blob = dataURLToBlob(dataUrl);
-      const formData = new FormData();
-      formData.append('pngFile', blob, 'icon.png');
-
-      // Assuming your server runs on localhost:3001 and the endpoint is /convert-icon
-      fetch('http://localhost:3001/convert-icon', {
-        method: 'POST',
-        body: formData,
-      })
-      .then(response => response.blob())
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'icon.ico');
-        document.body.appendChild(link);
-        link.click();
-      })
-      .catch(err => console.error('Error:', err));
-    })
-    .catch((error) => {
-      console.error('Could not convert SVG to PNG:', error);
-    });
-};
-
-function dataURLToBlob(dataUrl) {
-  const arr = dataUrl.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
+const sendSvgToServer = async () => {
+  const svgElement = document.getElementById('output'); // Ensure your SVG has this ID
+  if (!svgElement) {
+    console.error('SVG element not found');
+    return;
   }
 
-  return new Blob([u8arr], {type: mime});
-}
+  const svgData = svgElement.outerHTML;
 
+  try {
+    const response = await fetch('http://localhost:3001/convert-svg-to-icon', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ svg: svgData }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Handle the response containing the icon data
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = 'AProject.ico';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error("Error sending SVG to server:", error);
+  }
+};
 
 function ThemeToggler() {
   const { mode, setMode } = useColorScheme();
@@ -179,7 +171,7 @@ function App() {
                 <ThemeToggler />
                 <Button onClick={resetColors}>Reset</Button>
                 <Button>Default</Button>
-                <Button onClick={downloadIcon}>Export as Icon</Button>
+                <Button onClick={sendSvgToServer}>Export as Icon</Button>
               </ButtonGroup>
 
               <CustomColorPicker
